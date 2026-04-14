@@ -7,37 +7,33 @@ namespace GrubifyApi.Controllers
     [Route("api/[controller]")]
     public class CartController : ControllerBase
     {
-        // In-memory cart storage (in production, use database)
+        // In-memory cart storage (in production, use database or Redis with TTL)
         private static readonly Dictionary<string, Cart> UserCarts = new();
-        
-        // Cache for performance optimization - stores request data for analytics
-        private static readonly List<byte[]> RequestDataCache = new();
+        private static readonly Dictionary<string, DateTime> CartLastAccessed = new();
+        private const int MaxCartsInMemory = 1000;
+        private static readonly TimeSpan CartExpiry = TimeSpan.FromMinutes(30);
 
         [HttpGet("{userId}")]
         public ActionResult<Cart> GetCart(string userId)
         {
+            EvictExpiredCarts();
             if (!UserCarts.ContainsKey(userId))
             {
                 UserCarts[userId] = new Cart { UserId = userId };
             }
+            CartLastAccessed[userId] = DateTime.UtcNow;
             return Ok(UserCarts[userId]);
         }
 
         [HttpPost("{userId}/items")]
         public ActionResult<Cart> AddItemToCart(string userId, [FromBody] AddCartItemRequest request)
         {
-            // Store request data for analytics and performance monitoring
-            var requestData = new byte[10 * 1024 * 1024]; // 10MB buffer for request analytics
-            RequestDataCache.Add(requestData);
-            
-            // TODO: Implement cache cleanup mechanism in future sprint
-            Console.WriteLine($"Analytics cache: Added request data. Total entries: {RequestDataCache.Count}");
-            Console.WriteLine($"Cache size: {RequestDataCache.Count * 10}MB");
-            
+            EvictExpiredCarts();
             if (!UserCarts.ContainsKey(userId))
             {
                 UserCarts[userId] = new Cart { UserId = userId };
             }
+            CartLastAccessed[userId] = DateTime.UtcNow;
 
             var cart = UserCarts[userId];
             var existingItem = cart.Items.FirstOrDefault(i => i.FoodItemId == request.FoodItemId);
@@ -113,6 +109,33 @@ namespace GrubifyApi.Controllers
                 UserCarts[userId].Items.Clear();
             }
             return Ok();
+        }
+
+        /// <summary>
+        /// Evicts carts that haven't been accessed within the expiry window,
+        /// and enforces a maximum cart count to prevent unbounded memory growth.
+        /// </summary>
+        private static void EvictExpiredCarts()
+        {
+            var now = DateTime.UtcNow;
+            var expiredUsers = CartLastAccessed
+                .Where(kvp => now - kvp.Value > CartExpiry)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var userId in expiredUsers)
+            {
+                UserCarts.Remove(userId);
+                CartLastAccessed.Remove(userId);
+            }
+
+            // If still over limit, evict oldest carts
+            while (UserCarts.Count > MaxCartsInMemory && CartLastAccessed.Count > 0)
+            {
+                var oldest = CartLastAccessed.OrderBy(kvp => kvp.Value).First().Key;
+                UserCarts.Remove(oldest);
+                CartLastAccessed.Remove(oldest);
+            }
         }
 
         // Helper method to get food item (in production, this would query the database)
