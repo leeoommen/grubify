@@ -1,0 +1,29 @@
+# Email (Outlook) Connector Configuration — Grubify SRE
+# This file documents the email connector setup needed in the SRE Agent portal.
+#
+# Setup Steps:
+#   1. Go to Builder > Connectors in the SRE Agent portal
+#   2. Add "Send email (Outlook)" connector
+#   3. Complete OAuth consent for the tenant below
+#   4. The agent will use this to send summary emails
+
+connector_type: email_outlook
+display_name: "Grubify SRE Email (Outlook)"
+description: "Sends SRE summary emails for Grubify incident and channel activity digests"
+
+# OAuth Configuration
+oauth:
+  tenant_id: "72f988bf-86f1-41af-91ab-2d7cd011db47"
+  # Requires: Microsoft Graph permissions for Mail.Send
+  # Admin consent may be required depending on tenant policy
+
+# Default Recipients
+recipients:
+  - email: "lee.oommen@microsoft.com"
+    name: "Lee Oommen"
+    role: "SRE Lead"
+
+# Usage
+used_by:
+  - task: grubify-sre-channel-daily-summary
+    purpose: "Send daily summary of SRE Teams channel activity"

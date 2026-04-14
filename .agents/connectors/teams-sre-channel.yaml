@@ -1,0 +1,32 @@
+# Teams Connector Configuration — Grubify SRE Channel
+# This file documents the connector setup needed in the SRE Agent portal.
+#
+# Setup Steps:
+#   1. Go to Builder > Connectors in the SRE Agent portal
+#   2. Add "Send notification (Teams)" connector
+#   3. Complete OAuth consent for the tenant below
+#   4. Configure the target channel as specified below
+
+connector_type: teams
+display_name: "Grubify SRE Teams Channel"
+description: "Posts incident triage, RCA, and operational updates to the Grubify SRE Teams channel"
+
+# Target Channel Details
+channel:
+  name: SRE
+  url: "https://teams.microsoft.com/l/channel/19%3A_Ui-7i8qJphSwVsr5eO5gV-SXESKDXiSLJUOdSMt8bY1%40thread.tacv2/SRE?groupId=900bf4a1-2940-48c3-be80-cedf66b4526f&tenantId=72f988bf-86f1-41af-91ab-2d7cd011db47&ngc=true"
+  group_id: "900bf4a1-2940-48c3-be80-cedf66b4526f"
+  tenant_id: "72f988bf-86f1-41af-91ab-2d7cd011db47"
+
+# OAuth Configuration
+oauth:
+  tenant_id: "72f988bf-86f1-41af-91ab-2d7cd011db47"
+  # Requires: Microsoft Graph permissions for Channel.ReadBasic.All, ChannelMessage.Send
+  # Admin consent may be required depending on tenant policy
+
+# Usage
+used_by:
+  - agent: incident-triage-rca-notifier
+    purpose: "Post incident triage reports and RCA findings"
+  - task: grubify-sre-channel-daily-summary
+    purpose: "Read channel messages for daily summary generation"
